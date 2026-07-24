@@ -3,6 +3,8 @@
 
 export type LLMProviderName = "deepseek" | "claude" | "openai";
 
+export type SubtitleMode = "auto" | "whisper_only" | "youtube_only";
+
 export type JobStage =
   | "queued"
   | "downloading"
@@ -19,6 +21,8 @@ export interface GenerateRequest {
   url: string;
   language: string;
   llm_provider?: LLMProviderName | null;
+  subtitle_mode: SubtitleMode;
+  short_phrases: boolean;
   include_translation: boolean;
   translation_language?: string | null;
   include_pronunciation_tips: boolean;
@@ -49,4 +53,10 @@ export const STAGE_LABELS: Record<JobStage, string> = {
   cleaning_up: "Limpiando archivos temporales",
   done: "Completado",
   failed: "Error",
+};
+
+export const SUBTITLE_MODE_LABELS: Record<SubtitleMode, string> = {
+  auto: "Automático (YouTube si existe, si no Whisper)",
+  whisper_only: "Forzar Whisper (más fiel, sin filtro de groserías)",
+  youtube_only: "Solo subtítulos de YouTube",
 };

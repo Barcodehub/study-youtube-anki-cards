@@ -182,5 +182,27 @@ relevantes:
 - Logging estructurado en todos los servicios
 - Tests unitarios para la lógica más sensible (parseo de tiempos, parseo/
   validación del JSON del LLM, re-timing de subtítulos)
-#   s t u d y - y o u t u b e - a n k i - c a r d s  
- 
+
+  ### song
+
+  - if is a song, you can add this in segmenter.py {duration_rule}:
+  - If the transcript is a song, identify repeated choruses, refrains, hooks,
+  or repeated verses.
+- Only create a segment for the FIRST occurrence of repeated lyrical content.
+- If the same chorus or verse appears again later with substantially the same
+  lyrics, DO NOT create another segment for it.
+- Continue segmenting normally after the repeated section.
+- This deduplication rule applies only to songs or musical performances, not
+  to speeches, podcasts, interviews, or lessons.  
+- Ignore non-content metadata such as:
+  - song title
+  - artist name
+  - album name
+  - record label
+  - publisher
+  - "Written by"
+  - copyright notices
+  - licensing information
+  - production credits
+  - "Edit by", "Remastered by", etc.
+- Do not create segments consisting only of metadata or credits.

@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.api.schemas import GenerateRequest, JobStage
+from app.api.schemas import GenerateRequest, JobStage, SubtitleMode
 from app.config import settings
-from app.core.exceptions import PipelineError
+from app.core.exceptions import PipelineError, SubtitleExtractionError
 from app.core.job_manager import job_manager
 from app.llm.factory import get_llm_provider
 from app.logging_config import get_logger
@@ -48,20 +48,37 @@ def _run(job_id: str, request: GenerateRequest) -> None:
     job_manager.update(job_id, stage=JobStage.DOWNLOADING, progress_percent=5,
                         message="Downloading video...")
     downloader = YouTubeDownloader(settings.downloads_dir, preferred_lang=request.language)
-    result = downloader.download(str(request.url))
+    force_whisper = request.subtitle_mode == SubtitleMode.WHISPER_ONLY
+    result = downloader.download(str(request.url), skip_subtitles=force_whisper)
 
-    # --- Subtitles: use existing ones, or fall back to Whisper -------------
+    # --- Subtitles: behavior depends on the chosen subtitle_mode -----------
     job_manager.update(job_id, stage=JobStage.SUBTITLES, progress_percent=25,
                         message="Checking subtitles...")
     full_srt_path = settings.subtitles_dir / f"{result.video_path.stem}.srt"
 
-    if result.subtitle_path is not None:
+    if request.subtitle_mode == SubtitleMode.YOUTUBE_ONLY:
+        if result.subtitle_path is None:
+            raise SubtitleExtractionError(
+                "No se encontraron subtítulos de YouTube en el idioma solicitado "
+                "y el modo 'Solo YouTube' no permite usar Whisper como respaldo. "
+                "Prueba con 'Automático' o 'Forzar Whisper'."
+            )
         normalize_to_srt(result.subtitle_path, full_srt_path)
-    else:
+
+    elif request.subtitle_mode == SubtitleMode.WHISPER_ONLY:
         job_manager.update(job_id, stage=JobStage.TRANSCRIBING, progress_percent=30,
-                            message="No subtitles found, transcribing with faster-whisper "
-                                    "(this may take a while)...")
+                            message="Transcribiendo con faster-whisper "
+                                    "(esto puede tardar unos minutos)...")
         transcribe_to_srt(result.video_path, full_srt_path, language=request.language)
+
+    else:  # SubtitleMode.AUTO
+        if result.subtitle_path is not None:
+            normalize_to_srt(result.subtitle_path, full_srt_path)
+        else:
+            job_manager.update(job_id, stage=JobStage.TRANSCRIBING, progress_percent=30,
+                                message="No subtitles found, transcribing with faster-whisper "
+                                        "(this may take a while)...")
+            transcribe_to_srt(result.video_path, full_srt_path, language=request.language)
 
     transcript_text = srt_to_plain_transcript(full_srt_path)
 
@@ -69,7 +86,7 @@ def _run(job_id: str, request: GenerateRequest) -> None:
     job_manager.update(job_id, stage=JobStage.SEGMENTING, progress_percent=55,
                         message="Analyzing transcript with LLM...")
     provider = get_llm_provider(request.llm_provider)
-    segments = segment_transcript(provider, transcript_text)
+    segments = segment_transcript(provider, transcript_text, short_phrases=request.short_phrases)
 
     # --- Cutting + per-segment SRT + enrichment -------------------------
     job_manager.update(job_id, stage=JobStage.CUTTING, progress_percent=65,

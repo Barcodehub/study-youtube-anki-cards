@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
-import type { GenerateRequest, LLMProviderName } from "../types";
+import type { GenerateRequest, LLMProviderName, SubtitleMode } from "../types";
+import { SUBTITLE_MODE_LABELS } from "../types";
 
 interface UrlFormProps {
   onSubmit: (payload: GenerateRequest) => void;
@@ -21,10 +22,14 @@ const PROVIDER_OPTIONS: { value: LLMProviderName; label: string }[] = [
   { value: "openai", label: "OpenAI" },
 ];
 
+const SUBTITLE_MODE_OPTIONS: SubtitleMode[] = ["auto", "whisper_only", "youtube_only"];
+
 export function UrlForm({ onSubmit, disabled }: UrlFormProps) {
   const [url, setUrl] = useState("");
   const [language, setLanguage] = useState("en");
   const [llmProvider, setLlmProvider] = useState<LLMProviderName>("deepseek");
+  const [subtitleMode, setSubtitleMode] = useState<SubtitleMode>("auto");
+  const [shortPhrases, setShortPhrases] = useState(false);
   const [includeTranslation, setIncludeTranslation] = useState(false);
   const [translationLanguage, setTranslationLanguage] = useState("es");
   const [includePronunciationTips, setIncludePronunciationTips] = useState(true);
@@ -43,6 +48,8 @@ export function UrlForm({ onSubmit, disabled }: UrlFormProps) {
       url: url.trim(),
       language,
       llm_provider: llmProvider,
+      subtitle_mode: subtitleMode,
+      short_phrases: shortPhrases,
       include_translation: includeTranslation,
       translation_language: includeTranslation ? translationLanguage : null,
       include_pronunciation_tips: includePronunciationTips,
@@ -90,6 +97,54 @@ export function UrlForm({ onSubmit, disabled }: UrlFormProps) {
           </select>
         </label>
       </div>
+
+      <label className="field">
+        <span>Modo de subtítulos</span>
+        <select
+          value={subtitleMode}
+          onChange={(e) => setSubtitleMode(e.target.value as SubtitleMode)}
+          disabled={disabled}
+        >
+          {SUBTITLE_MODE_OPTIONS.map((mode) => (
+            <option key={mode} value={mode}>
+              {SUBTITLE_MODE_LABELS[mode]}
+            </option>
+          ))}
+        </select>
+      </label>
+      {subtitleMode === "whisper_only" && (
+        <p className="field-hint">
+          Whisper transcribe el audio tal cual, sin el filtro de groserías/lenguaje
+          coloquial que aplica YouTube a sus subtítulos automáticos. Tardará un poco
+          más que usar subtítulos existentes.
+        </p>
+      )}
+      {subtitleMode === "youtube_only" && (
+        <p className="field-hint">
+          Si el video no tiene subtítulos en el idioma elegido, el proceso fallará
+          en vez de usar Whisper como respaldo.
+        </p>
+      )}
+
+      <div className="field-row checkboxes">
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={shortPhrases}
+            onChange={(e) => setShortPhrases(e.target.checked)}
+            disabled={disabled}
+          />
+          <span>Frases cortas (máx. 2 oraciones por tarjeta)</span>
+        </label>
+      </div>
+
+      {shortPhrases && (
+        <p className="field-hint">
+          Generará muchas más tarjetas cortas en vez de agrupar por tema. El
+          proceso tomará más tiempo (más cortes de video y más llamadas al LLM
+          por tarjeta).
+        </p>
+      )}
 
       <div className="field-row checkboxes">
         <label className="checkbox">

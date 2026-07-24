@@ -55,10 +55,31 @@ class JobStage(StrEnum):
     FAILED = "failed"
 
 
+class SubtitleMode(StrEnum):
+    """How to obtain the transcript for a video.
+
+    - AUTO: use YouTube's subtitles if available, otherwise fall back to
+      faster-whisper (previous/default behavior).
+    - WHISPER_ONLY: always transcribe with faster-whisper, ignoring any
+      YouTube subtitles even if they exist. YouTube's automatic (and often
+      even creator-uploaded) captions apply a profanity/slang filter that
+      censors or simplifies colloquial speech -- Whisper transcribes the
+      audio verbatim, which is usually more faithful for language learning.
+    - YOUTUBE_ONLY: only use YouTube's subtitles; fail with a clear error if
+      none are available in the requested language (no automatic fallback).
+    """
+
+    AUTO = "auto"
+    WHISPER_ONLY = "whisper_only"
+    YOUTUBE_ONLY = "youtube_only"
+
+
 class GenerateRequest(BaseModel):
     url: HttpUrl
     language: str = "en"
     llm_provider: LLMProvider | None = None
+    subtitle_mode: SubtitleMode = SubtitleMode.AUTO
+    short_phrases: bool = False
     include_translation: bool = False
     translation_language: str | None = "es"
     include_pronunciation_tips: bool = True

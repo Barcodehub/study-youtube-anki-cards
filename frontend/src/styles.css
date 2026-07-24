@@ -112,6 +112,13 @@ body {
   margin: 0;
 }
 
+.field-hint {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin: -8px 0 0;
+  line-height: 1.4;
+}
+
 .generate-button,
 .download-button,
 .secondary-button {
